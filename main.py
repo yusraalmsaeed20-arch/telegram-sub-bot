@@ -28,6 +28,9 @@ async def is_user_subscribed(bot, user_id):
         return False
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+        
     user_id = update.message.from_user.id
     subscribed = await is_user_subscribed(context.bot, user_id)
     
@@ -44,11 +47,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if "instagram.com" in text:
         msg = await update.message.reply_text("⏳ جاري تحضير وتنزيل المقطع، انتظر لحظة...")
-        file_path = f"video_{user_id}.mp4"
+        file_name = f"vid_{user_id}.mp4"
         
         ydl_opts = {
-            'outtmpl': file_path,
-            'format': 'mp4/best',
+            'outtmpl': file_name,
+            'format': 'best',
             'quiet': True
         }
         
@@ -56,15 +59,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([text])
             
-            with open(file_path, 'rb') as video:
-                await update.message.reply_video(video=video, caption="✅ تم التنزيل بنجاح!")
+            if os.path.exists(file_name):
+                with open(file_name, 'rb') as video:
+                    await update.message.reply_video(video=video, caption="✅ تم التنزيل بنجاح!")
+                os.remove(file_name)
+            else:
+                await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
             
             await msg.delete()
         except Exception as e:
+            print(f"Error: {e}")
             await update.message.reply_text("❌ عذراً، فشل تنزيل المقطع. تأكد من أن الحساب عام والرابط صحيح.")
-        finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
     else:
         await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو من إنستغرام لتحميله.")
 
