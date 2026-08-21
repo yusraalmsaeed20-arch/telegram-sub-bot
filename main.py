@@ -17,7 +17,8 @@ def run_health_check_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-TOKEN = os.getenv('BOT_TOKEN')
+# التوكن الجديد المباشر
+TOKEN = os.getenv('BOT_TOKEN', '8335419718:AAFiqjaMYJr3VyxiL3QlYLPVUZJ2Bq48PdE')
 CHANNEL_USERNAME = '@aabaq22'
 
 async def is_user_subscribed(bot, user_id):
@@ -47,7 +48,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
     
-    # التحقق مما إذا كانت الرسالة تحتوي على رابط
     if text.startswith("http://") or text.startswith("https://"):
         msg = await update.message.reply_text("⏳ جاري تحضير وتنزيل المقطع، انتظر لحظة...")
         file_name = f"vid_{user_id}.mp4"
