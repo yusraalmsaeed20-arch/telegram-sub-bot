@@ -17,7 +17,7 @@ def run_health_check_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-TOKEN = os.getenv('BOT_TOKEN', '8335419718:AAHADQsTY_dn5U-s0BcfLWAQiVOUSkM10us')
+TOKEN = os.getenv('BOT_TOKEN')
 CHANNEL_USERNAME = '@aabaq22'
 
 async def is_user_subscribed(bot, user_id):
@@ -45,15 +45,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    text = update.message.text
-    if "instagram.com" in text:
+    text = update.message.text.strip()
+    
+    # التحقق مما إذا كانت الرسالة تحتوي على رابط
+    if text.startswith("http://") or text.startswith("https://"):
         msg = await update.message.reply_text("⏳ جاري تحضير وتنزيل المقطع، انتظر لحظة...")
         file_name = f"vid_{user_id}.mp4"
         
         ydl_opts = {
             'outtmpl': file_name,
             'format': 'best',
-            'quiet': True
+            'quiet': True,
+            'no_warnings': True
         }
         
         try:
@@ -70,9 +73,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.delete()
         except Exception as e:
             print(f"Error: {e}")
-            await update.message.reply_text("❌ عذراً، فشل تنزيل المقطع. تأكد من أن الحساب عام والرابط صحيح.")
+            await update.message.reply_text("❌ عذراً، فشل تنزيل المقطع. تأكد من أن الرابط صحيح والحساب عام.")
     else:
-        await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو من إنستغرام لتحميله.")
+        await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو من (إنستغرام، فيسبوك، سناب شات، بينتريست، تيك توك) لتحميله.")
 
 def main():
     threading.Thread(target=run_health_check_server, daemon=True).start()
