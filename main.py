@@ -1,11 +1,28 @@
-import os, asyncio, yt_dlp
+import os
+import threading
+import asyncio
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import yt_dlp
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN = '8335419718:AAFiqjaMYJr3VyxiL3QlYLPVUZJ2Bq48PdE'
 
+# سيرفر وهمي لإرضاء منصة Render
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is Running!")
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text: return
+    if not update.message or not update.message.text: 
+        return
     text = update.message.text.strip()
     
     if text.startswith("http://") or text.startswith("https://"):
@@ -18,7 +35,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'format': 'best',
             'quiet': True,
             'no_warnings': True,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
         }
         
         try:
@@ -31,10 +47,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await update.message.reply_video(video=v, caption="✅ تم التحميل بنجاح!")
                 os.remove(f_name)
             else:
-                await update.message.reply_text("❌ لم يتم العثور على الفيديو، قد يكون الحساب خاصاً.")
+                await update.message.reply_text("❌ لم يتم العثور على الفيديو.")
             await msg.delete()
         except Exception as e:
-            await update.message.reply_text("❌ فشل التحميل. تأكدي أن الرابط يعمل والحساب عام.")
+            await update.message.reply_text("❌ فشل التحميل.")
+    else:
+        await update.message.reply_text("أهلاً بك! أرسلي لي رابط فيديو لتحميله.")
+
+def main():
+    # تشغيل سيرفر الويب في الخلفية
+    threading.Thread(target=run_web_server, daemon=True).start()
+    
+    # تشغيل بوت تيليجرام
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == '__main__':
+    main()            await update.message.reply_text("❌ فشل التحميل. تأكدي أن الرابط يعمل والحساب عام.")
     else:
         await update.message.reply_text("أهلاً بك! أرسلي لي رابط فيديو لتحميله.")
 
