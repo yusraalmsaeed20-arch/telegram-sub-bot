@@ -17,7 +17,6 @@ def run_health_check_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-# التوكن الجديد المباشر
 TOKEN = os.getenv('BOT_TOKEN', '8335419718:AAFiqjaMYJr3VyxiL3QlYLPVUZJ2Bq48PdE')
 CHANNEL_USERNAME = '@aabaq22'
 
@@ -49,33 +48,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     
     if text.startswith("http://") or text.startswith("https://"):
-        msg = await update.message.reply_text("⏳ جاري تحضير وتنزيل المقطع، انتظر لحظة...")
-        file_name = f"vid_{user_id}.mp4"
+        msg = await update.message.reply_text("⏳ جاري تحميل المقطع، انتظر لحظة...")
+        output_template = f"vid_{user_id}.%(ext)s"
         
         ydl_opts = {
-            'outtmpl': file_name,
-            'format': 'best',
+            'outtmpl': output_template,
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'quiet': True,
-            'no_warnings': True
+            'no_warnings': True,
         }
         
         try:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([text]))
             
-            if os.path.exists(file_name):
-                with open(file_name, 'rb') as video:
+            # البحث عن الملف المنزل بغض النظر عن امتداده
+            downloaded_file = None
+            for file in os.listdir('.'):
+                if file.startswith(f"vid_{user_id}"):
+                    downloaded_file = file
+                    break
+            
+            if downloaded_file and os.path.exists(downloaded_file):
+                with open(downloaded_file, 'rb') as video:
                     await update.message.reply_video(video=video, caption="✅ تم التنزيل بنجاح!")
-                os.remove(file_name)
+                os.remove(downloaded_file)
             else:
-                await update.message.reply_text("❌ لم يتم العثور على الملف بعد التحميل.")
+                await update.message.reply_text("❌ متعذر إيجاد الفيديو، تأكد من أن الرابط لحساب عام وليس خاصاً.")
             
             await msg.delete()
         except Exception as e:
-            print(f"Error: {e}")
-            await update.message.reply_text("❌ عذراً، فشل تنزيل المقطع. تأكد من أن الرابط صحيح والحساب عام.")
+            print(f"Download Error: {e}")
+            await update.message.reply_text("❌ فشل تنزيل المقطع. تأكد أن الرابط يعمل وأن الحساب عام.")
     else:
-        await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو من (إنستغرام، فيسبوك، سناب شات، بينتريست، تيك توك) لتحميله.")
+        await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو لتحميله.")
 
 def main():
     threading.Thread(target=run_health_check_server, daemon=True).start()
