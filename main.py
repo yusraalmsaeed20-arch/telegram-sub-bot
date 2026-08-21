@@ -1,7 +1,8 @@
 import os
 import threading
-import yt_dlp
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import asyncio
+import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -9,7 +10,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Bot is alive!")
+        self.wfile.write(b"OK")
 
 def run_health_check_server():
     port = int(os.environ.get("PORT", 10000))
@@ -56,8 +57,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([text])
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([text]))
             
             if os.path.exists(file_name):
                 with open(file_name, 'rb') as video:
@@ -75,13 +76,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     threading.Thread(target=run_health_check_server, daemon=True).start()
-
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", handle_message))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    print("Bot is running...")
-    app.run_polling()
+    print("Bot is starting...")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
