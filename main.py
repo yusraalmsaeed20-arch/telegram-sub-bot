@@ -17,7 +17,7 @@ def run_health_check_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-TOKEN = os.getenv('BOT_TOKEN', '8335419718:AAFiqjaMYJr3VyxiL3QlYLPVUZJ2Bq48PdE')
+TOKEN = '8335419718:AAFiqjaMYJr3VyxiL3QlYLPVUZJ2Bq48PdE'
 CHANNEL_USERNAME = '@aabaq22'
 
 async def is_user_subscribed(bot, user_id):
@@ -53,6 +53,46 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         ydl_opts = {
             'outtmpl': output_template,
+            'format': 'best',
+            'quiet': True,
+            'no_warnings': True,
+        }
+        
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([text]))
+            
+            downloaded_file = None
+            for file in os.listdir('.'):
+                if file.startswith(f"vid_{user_id}"):
+                    downloaded_file = file
+                    break
+            
+            if downloaded_file and os.path.exists(downloaded_file):
+                with open(downloaded_file, 'rb') as video:
+                    await update.message.reply_video(video=video, caption="✅ تم التنزيل بنجاح!")
+                os.remove(downloaded_file)
+            else:
+                await update.message.reply_text("❌ متعذر إيجاد الفيديو، تأكد من أن الرابط لحساب عام وليس خاصاً.")
+            
+            await msg.delete()
+        except Exception as e:
+            print(f"Download Error: {e}")
+            await update.message.reply_text("❌ فشل تنزيل المقطع. تأكد أن الرابط يعمل وأن الحساب عام.")
+    else:
+        await update.message.reply_text("أهلاً بك! أرسل لي رابط فيديو لتحميله.")
+
+def main():
+    threading.Thread(target=run_health_check_server, daemon=True).start()
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    print("Bot is starting...")
+    app.run_polling(drop_pending_updates=True, stop_signals=None)
+
+if __name__ == '__main__':
+    main()        ydl_opts = {
+            'outtmpl': output_template,
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'quiet': True,
             'no_warnings': True,
@@ -63,8 +103,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([text]))
             
             # البحث عن الملف المنزل بغض النظر عن امتداده
-            downloaded_file = None
-            for file in os.listdir('.'):
+            downloaded_file in os.listdir('.'):
                 if file.startswith(f"vid_{user_id}"):
                     downloaded_file = file
                     break
