@@ -1,40 +1,34 @@
-import os
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import asyncio
-import yt_dlp
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import os, asyncio, yt_dlp
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"OK")
-
-def run_health_check_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
-    server.serve_forever()
-
 TOKEN = '8335419718:AAFiqjaMYJr3VyxiL3QlYLPVUZJ2Bq48PdE'
-CHANNEL_USERNAME = '@aabaq22'
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    
-    # التحقق من الرابط
+    text = update.message.text.strip() if update.message else ""
     if "instagram.com" in text:
-        msg = await update.message.reply_text("⏳ جاري تحميل المقطع من الإنستغرام...")
-        user_id = update.message.from_user.id
-        output_template = f"vid_{user_id}.mp4"
-        
-        ydl_opts = {
-            'outtmpl': output_template,
-            'format': 'best',
-            'quiet': True,
-        }
-        
+        msg = await update.message.reply_text("⏳ جاري تحميل المقطع...")
+        u_id = update.message.from_user.id
+        ydl_opts = {'outtmpl': f'v_{u_id}.%(ext)s', 'format': 'best', 'quiet': True}
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([text]))
+            f_name = next((f for f in os.listdir('.') if f.startswith(f"v_{u_id}")), None)
+            if f_name:
+                with open(f_name, 'rb') as v: await update.message.reply_video(video=v, caption="✅ تم!")
+                os.remove(f_name)
+            else: await update.message.reply_text("❌ الفيديو غير موجود أو الحساب خاص.")
+            await msg.delete()
+        except Exception: await update.message.reply_text("❌ فشل التحميل.")
+    else: await update.message.reply_text("أرسلي رابط إنستغرام فقط.")
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == '__main__': main()        
         try:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([text]))
